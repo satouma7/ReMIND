@@ -100,11 +100,11 @@ reviews – external evaluation results (per reviewer / model)
    └─ short_rationale
 ```
 ### 4. Correlation and Singularity Detection
-`plot_scatter.py` visualizes the relationship between semantic distance and quality scores (Fig. 3). It calculates Spearman’s $\rho$ (correlation) and highlights that high-quality outputs appear sporadically across the similarity axis, confirming that serendipity is a rare-event process.
+`plot_scatter.py` visualizes the relationship between semantic distance and quality scores (Fig. 3). It calculates Spearman’s rho (correlation) and highlights that high-quality outputs appear sporadically across the similarity axis, confirming that serendipity is a rare-event process.
 ## Citation
 If you use this framework in your research, please cite our work:
 
 Sato, M. (2026). 
 **ReMIND: Orchestrating Modular Large Language Models for Controllable Serendipity**
 **A REM-Inspired System Design for Emergent Creative Ideation**
-arXiv:2601.XXXXX. 21
+[arXiv:2601.07121](https://arxiv.org/abs/2601.07121)
