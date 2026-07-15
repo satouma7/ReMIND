@@ -1,10 +1,8 @@
 # similarity.py: cosine similarity analysis for ReMIND
-# This script evaluates semantic cosine between wake_out and dream_out outputs. 
+# This script evaluates semantic cosine between idea_wake and idea_dream outputs. 
 # Embeddings are normalized before similarity computation to improve numerical stability. 
-# Usage:
-#   python similarity.py logs/remind_sweep_XXXX.jsonl
-# Output:   similarity_XXXX.csv
 from __future__ import annotations
+
 import argparse
 import json
 from pathlib import Path
@@ -35,18 +33,13 @@ def main() -> None:
     ap.add_argument(
         "--out",
         type=str,
-        default="",
+        default="reports/idea_similarity.csv",
         help="output CSV path",
     )
     args = ap.parse_args()
 
     jsonl_path = Path(args.jsonl).expanduser()
-    if args.out:
-        out_path = Path(args.out).expanduser()
-    else:
-        stem = jsonl_path.stem
-        suffix = stem.replace("remind_sweep_", "")
-        out_path = Path("reports") / f"similarity_{suffix}.csv"
+    out_path = Path(args.out).expanduser()
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
     print(f"[similarity] loading: {jsonl_path}")
@@ -57,13 +50,11 @@ def main() -> None:
     rows = []
     for r in records:
         res = r.get("result", r)  # Use result for sweep runs; for a single run, use r itself
-        if not isinstance(res, dict):
-            # result is None or malformed -> skip
-            continue
-        wake_out = (res.get("wakeout") or "").strip()
-        dream_out = (res.get("dreamout") or "").strip()
 
-        if not wake_out or not dream_out:
+        idea_wake = (res.get("idea_wake") or "").strip()
+        idea_dream = (res.get("idea_dream") or "").strip()
+
+        if not idea_wake or not idea_dream:
             continue  # skip empty
 
         sweep = r.get("sweep", {})
@@ -76,8 +67,8 @@ def main() -> None:
                 "word_limit": sweep.get("word_limit"),
                 "temp_dream": sweep.get("temp_dream"),
                 "seed_dream": sweep.get("seed_dream"),
-                "wake_out": wake_out,
-                "dream_out": dream_out,
+                "idea_wake": idea_wake,
+                "idea_dream": idea_dream,
             }
         )
 
@@ -94,13 +85,13 @@ def main() -> None:
 
     # util.cos_sim expects torch tensors; therefore we set convert_to_tensor=True
     emb_wake = model.encode(
-        df["wake_out"].tolist(),
+        df["idea_wake"].tolist(),
         show_progress_bar=True,
         convert_to_tensor=True,
         normalize_embeddings=True,   # improves numerical stability for cosine similarity
     )
     emb_dream = model.encode(
-        df["dream_out"].tolist(),
+        df["idea_dream"].tolist(),
         show_progress_bar=True,
         convert_to_tensor=True,
         normalize_embeddings=True,

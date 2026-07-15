@@ -1,0 +1,8 @@
+logs/
+reports/
+__pycache__/
+*.pyc
+*.jsonl
+*.csv
+*.pkl
+*.parquet

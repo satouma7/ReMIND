@@ -1,22 +1,11 @@
-# review_similarity.py: merge idea-level cosine similarity CSV with OpenAI review JSONL
-# Output: idea_similarity_with_review.csv (adds prompt, rewakeout, alignment/coherence/novelty/sum_score)
+# review_similarity.py: merge review JSONL with cosine similarity CSV
+# Output: reports/review_similarity_XXXX.csv
 # Usage:
-#   python review_similarity.py \
-#     --idea-csv reports/idea_similarity.csv \
-#     --review-jsonl logs/remind_review_20251227T072006Z.jsonl \
-#     --out reports/idea_similarity_with_review.csv
+#   python review_similarity.py --review remind_review_XXXX.jsonl --similarity similarity_XXXX.csv
 # Notes:
-# - Assumes idea_similarity.csv has at least: run_id, cosine_similarity
-# - idea_similarity.csv is typically produced by similarity2.py and therefore includes ONLY runs where
-#   both idea_wake and idea_dream are non-empty (runs with empty extracted ideas are excluded upstream).
-# - This script merges by run_id, effectively keeping the intersection of:
-#     {runs present in idea_similarity.csv} ∩ {runs present in review JSONL with "openai" scores}
-#   As a result, reviewed runs that lack cosine_similarity (i.e., absent from idea_similarity.csv)
-#   will not appear in the output.
-# - review jsonl lines contain: run_id, prompt, rewakeout, reviews.openai.{alignment,coherence,novelty}
-# - If multiple reviewers exist, this script prioritizes "openai" by default.
+# - review JSONL (v2): has "target" and "text"
+# - legacy review JSONL: may have "rewakeout" and no "target"
 from __future__ import annotations
-
 import argparse
 import json
 from pathlib import Path
@@ -24,6 +13,10 @@ from typing import Dict, Any, Optional, List
 
 import pandas as pd
 
+
+# -------------------------
+# IO helpers
+# -------------------------
 def load_jsonl(path: Path) -> List[Dict[str, Any]]:
     records: List[Dict[str, Any]] = []
     with path.open("r", encoding="utf-8") as f:
@@ -35,6 +28,37 @@ def load_jsonl(path: Path) -> List[Dict[str, Any]]:
     return records
 
 
+def resolve_in_default_dir(p: str, default_dir: str) -> Path:
+    """
+    If p exists as-is -> use it.
+    Else, try default_dir/p (e.g., logs/foo.jsonl or reports/bar.csv).
+    """
+    path = Path(p).expanduser()
+    if path.exists():
+        return path
+
+    alt = Path(default_dir) / path
+    if alt.exists():
+        return alt
+
+    # If user passed bare filename but it's not in default_dir either, raise original for clarity
+    raise FileNotFoundError(str(path))
+
+
+def infer_suffix_from_review_path(review_path: Path) -> str:
+    """
+    logs/remind_review_XXXX.jsonl -> XXXX
+    logs/remind_review_XXXX_rewake.jsonl -> XXXX_rewake
+    """
+    stem = review_path.stem  # remind_review_XXXX...
+    if stem.startswith("remind_review_"):
+        return stem.replace("remind_review_", "", 1)
+    return stem
+
+
+# -------------------------
+# Review parsing
+# -------------------------
 def pick_reviewer(block: Dict[str, Any], prefer: str = "openai") -> Optional[Dict[str, Any]]:
     if not isinstance(block, dict):
         return None
@@ -45,47 +69,94 @@ def pick_reviewer(block: Dict[str, Any], prefer: str = "openai") -> Optional[Dic
             return v
     return None
 
+
+def extract_target_and_text(r: Dict[str, Any]) -> tuple[str, str]:
+    """
+    v2: target + text
+    legacy: rewakeout (no target)
+    """
+    tgt = r.get("target")
+    txt = r.get("text")
+
+    if isinstance(tgt, str) and isinstance(txt, str):
+        return tgt, txt
+
+    # legacy
+    rw = r.get("rewakeout")
+    if isinstance(rw, str):
+        return "rewake", rw
+
+    # last resort (avoid crash)
+    return "unknown", ""
+
+
+def truncate(s: Any, n: int) -> Any:
+    if not isinstance(s, str):
+        return s
+    s2 = s.strip()
+    if len(s2) <= n:
+        return s2
+    return s2[:n] + "…"
+
+
+# -------------------------
+# Main
+# -------------------------
 def main() -> None:
-    ap = argparse.ArgumentParser(description="Merge idea similarity CSV with external review JSONL.")
-    ap.add_argument("--idea-csv", required=True, type=str, help="path to idea_similarity.csv")
-    ap.add_argument("--review-jsonl", required=True, type=str, help="path to remind_review_*.jsonl")
-    ap.add_argument("--out", default="reports/idea_similarity_with_review.csv", type=str, help="output CSV path")
+    ap = argparse.ArgumentParser(description="Merge external review JSONL with similarity CSV.")
+
+    # requested UX
+    ap.add_argument("--review", required=True, type=str, help="review JSONL (default dir: logs/)")
+    ap.add_argument("--similarity", required=True, type=str, help="similarity CSV (default dir: reports/)")
+
+    # backward-compatible aliases (optional, safe)
+    ap.add_argument("--review-jsonl", dest="review_jsonl", default="", type=str, help=argparse.SUPPRESS)
+    ap.add_argument("--similarity_csv", dest="similarity_csv", default="", type=str, help=argparse.SUPPRESS)
+
+    ap.add_argument("--out", default="", type=str, help="output CSV path (default: reports/review_similarity_XXXX.csv)")
     ap.add_argument("--reviewer", default="openai", type=str, help="preferred reviewer key (default: openai)")
     ap.add_argument(
         "--keep-long-text",
         action="store_true",
-        help="keep full prompt/rewakeout text (default: truncate to 500/1500 chars for CSV readability)",
+        help="keep full prompt/text (default: truncate for CSV readability)",
     )
     args = ap.parse_args()
 
-    idea_path = Path(args.idea_csv).expanduser()
-    review_path = Path(args.review_jsonl).expanduser()
-    out_path = Path(args.out).expanduser()
+    # allow old flags if user still uses them
+    review_arg = args.review_jsonl or args.review
+    sim_arg = args.similarity_csv or args.similarity
+
+    review_path = resolve_in_default_dir(review_arg, "logs")
+    similarity_path = resolve_in_default_dir(sim_arg, "reports")
+
+    if args.out:
+        out_path = Path(args.out).expanduser()
+    else:
+        suffix = infer_suffix_from_review_path(review_path)
+        out_path = Path("reports") / f"review_similarity_{suffix}.csv"
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
-    if not idea_path.exists():
-        raise FileNotFoundError(f"idea CSV not found: {idea_path}")
-    if not review_path.exists():
-        raise FileNotFoundError(f"review JSONL not found: {review_path}")
+    print(f"[merge] review    : {review_path}")
+    print(f"[merge] similarity: {similarity_path}")
+    print(f"[merge] out      : {out_path}")
+    print(f"[merge] reviewer : {args.reviewer}")
 
-    print(f"[merge] loading idea csv   : {idea_path}")
-    idea_df = pd.read_csv(idea_path)
-    if "run_id" not in idea_df.columns:
-        raise ValueError("idea CSV must contain 'run_id' column")
-    if "cosine_similarity" not in idea_df.columns:
-        raise ValueError("idea CSV must contain 'cosine_similarity' column")
+    # load similarity
+    sim_df = pd.read_csv(similarity_path)
+    if "run_id" not in sim_df.columns:
+        raise ValueError("similarity CSV must contain 'run_id' column")
+    if "cosine_similarity" not in sim_df.columns:
+        raise ValueError("similarity CSV must contain 'cosine_similarity' column")
 
-    # normalize run_id type for merge
-    idea_df["run_id"] = pd.to_numeric(idea_df["run_id"], errors="coerce").astype("Int64")
+    sim_df["run_id"] = pd.to_numeric(sim_df["run_id"], errors="coerce").astype("Int64")
 
-    print(f"[merge] loading review jsonl: {review_path}")
+    # load review
     rev_records = load_jsonl(review_path)
     print(f"[merge] loaded review records: {len(rev_records)}")
 
-    # Build lookup by run_id
     rows: List[Dict[str, Any]] = []
-    missing_review = 0
     ok_review = 0
+    missing_review = 0
 
     for r in rev_records:
         run_id = r.get("run_id")
@@ -94,12 +165,7 @@ def main() -> None:
         except Exception:
             continue
 
-        if r.get("meta", {}).get("status") != "ok":
-            # keep it (so we can see missing), but scores will be NaN
-            status = r.get("meta", {}).get("status", "unknown")
-        else:
-            status = "ok"
-
+        status = (r.get("meta") or {}).get("status", "unknown")
         reviewer_obj = pick_reviewer((r.get("reviews") or {}), prefer=args.reviewer)
 
         alignment = coherence = novelty = None
@@ -118,14 +184,12 @@ def main() -> None:
             missing_review += 1
 
         prompt = r.get("prompt", "")
-        rewakeout = r.get("rewakeout", "")
+        target, text = extract_target_and_text(r)
 
         if not args.keep_long_text:
-            # keep CSV readable (Excel-friendly)
-            if isinstance(prompt, str) and len(prompt) > 500:
-                prompt = prompt[:500] + "…"
-            if isinstance(rewakeout, str) and len(rewakeout) > 1500:
-                rewakeout = rewakeout[:1500] + "…"
+            prompt = truncate(prompt, 500)
+            text = truncate(text, 1500)
+            short_rationale = truncate(short_rationale, 600)
 
         sum_score = None
         try:
@@ -137,6 +201,7 @@ def main() -> None:
         rows.append(
             {
                 "run_id": run_id_int,
+                "target": target,
                 "review_status": status,
                 "reviewer": args.reviewer,
                 "review_model": model_name,
@@ -146,7 +211,7 @@ def main() -> None:
                 "sum_score": sum_score,
                 "short_rationale": short_rationale,
                 "prompt": prompt,
-                "rewakeout": rewakeout,
+                "text": text,
             }
         )
 
@@ -154,30 +219,22 @@ def main() -> None:
     if rev_df.empty:
         raise RuntimeError("No usable rows parsed from review JSONL (run_id missing?)")
 
-    # Merge
-    merged = idea_df.merge(rev_df, on="run_id", how="left")
+    # merge
+    merged = sim_df.merge(rev_df, on="run_id", how="left")
 
-    # Report
-    print(f"[merge] idea rows : {len(idea_df)}")
-    print(f"[merge] review ok : {ok_review}  missing/err: {missing_review}")
-    print(f"[merge] merged    : {len(merged)}")
+    print(f"[merge] similarity rows : {len(sim_df)}")
+    print(f"[merge] review ok       : {ok_review}  missing/err: {missing_review}")
+    print(f"[merge] merged         : {len(merged)}")
 
-    # Save
     merged.to_csv(out_path, index=False, encoding="utf-8-sig")
     print(f"[merge] wrote: {out_path}")
 
-    # Quick summaries
     scored = merged.dropna(subset=["alignment", "coherence", "novelty", "sum_score", "cosine_similarity"])
     print("\n[merge] summary (rows with both cosine + review scores)")
     print(f"  n = {len(scored)}")
     if len(scored) > 0:
         print(f"  sum_score mean={scored['sum_score'].mean():.2f}  min={scored['sum_score'].min():.0f}  max={scored['sum_score'].max():.0f}")
         print(f"  cosine    mean={scored['cosine_similarity'].mean():.3f}  min={scored['cosine_similarity'].min():.3f}  max={scored['cosine_similarity'].max():.3f}")
-
-        # Example: distribution for high scores
-        hi = scored[scored["sum_score"] >= 14]
-        if len(hi) > 0:
-            print(f"\n  sum_score>=14: n={len(hi)}  cosine mean={hi['cosine_similarity'].mean():.3f}  min={hi['cosine_similarity'].min():.3f}  max={hi['cosine_similarity'].max():.3f}")
 
 
 if __name__ == "__main__":

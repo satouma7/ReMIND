@@ -4,29 +4,18 @@ from typing import Any, Optional
 from wake import wake
 from dream import dream
 from judge import judge
-import math
 
-CORE_PAIRS = [
+DEFAULT_PAIRS: list[tuple[str, str]] = [
     ("time", "space"),
     ("aperiodic tile", "traditional craft"),
     ("periodic table", "tarot divination"),
 ]
 
-SOCIAL_PAIRS = [
-    # --- primary (used by default in sweep) ---
-    ("loss of life purpose", "AI-integrated civilization"),
-    ("urban loneliness", "infrastructure design"),
-    ("shortening lifespan of knowledge", "lifelong education"),
-    # --- extended (opt-in via --all-social) ---
-    ("resource depletion", "global economics"),
-    ("wealth inequality", "social financial systems"),
-    ("political polarization", "modern governance"),
-    ("aging population", "future healthcare"),
-    ("personal agency", "digital legal framework"),
-    ("social fragmentation", "community building"),
-    ("international conflict", "global security"),
-]
-SOCIAL_PAIRS_MAIN = SOCIAL_PAIRS[:3]   # default subset for paper
+DEFAULT_LLM: dict[str, str] = {
+    "wake": "oss120b",
+    "dream": "gemma27b",
+    "judge": "gemma27b",
+}
 
 def build_prompts(pair: tuple[str, str], word_limit: int = 150) -> list[str]:
     a, b = pair
@@ -34,31 +23,23 @@ def build_prompts(pair: tuple[str, str], word_limit: int = 150) -> list[str]:
         f'Compare the meaning of "{a}" and "{b}" within {word_limit} words.',
         f'Describe the unexpected relationship between "{a}" and "{b}" within {word_limit} words.',
         f'Propose a new idea about the relationship between "{a}" and "{b}" within {word_limit} words.',
-        f'Propose a novel approach to address "{a}" in "{b}" within {word_limit} words.',
     ]
-
-def auto_max_tokens(word_limit: int, *, role: str) -> int:
-    # rough: 1 word ~ 1.3-1.6 tokens. Use safer multipliers to avoid truncation.
-    if role in ("wake", "dream"):
-        return int(math.ceil(word_limit * 1.8) + 80)
-    if role == "rewake":
-        return int(math.ceil(word_limit * 2.0) + 120)
-    raise ValueError(role)
 
 def run_remind(
     *,
     pair: tuple[str, str],
     template_id: int = 2,
     word_limit: int = 150,
-    llm_wake: str = "oss120b",
-    llm_dream: str = "oss120b",
-    llm_judge: str = "oss120b",
 
     # Automatically computed if None
     max_tokens_wake: Optional[int] = None,
     max_tokens_dream: Optional[int] = None,
     max_tokens_rewake: Optional[int] = None,
     max_tokens_judge: int = 200,  # a small fixed value is recommended for the judge
+
+    llm_wake: str = DEFAULT_LLM["wake"],
+    llm_dream: str = DEFAULT_LLM["dream"],
+    llm_judge: str = DEFAULT_LLM["judge"],
 
     temp_wake: float = 0.6,
     temp_dream: float = 10.0,
@@ -81,11 +62,11 @@ def run_remind(
 
     # Automatic max_tokens calculation (only when set to None)
     if max_tokens_wake is None:
-        max_tokens_wake = auto_max_tokens(word_limit, role="wake")
+        max_tokens_wake = word_limit + 50
     if max_tokens_dream is None:
-        max_tokens_dream = auto_max_tokens(word_limit, role="dream")
+        max_tokens_dream = word_limit + 50
     if max_tokens_rewake is None:
-        max_tokens_rewake = auto_max_tokens(word_limit, role="rewake")
+        max_tokens_rewake = word_limit + 100
 
     if temp_rewake is None:
         temp_rewake = temp_wake
