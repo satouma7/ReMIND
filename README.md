@@ -1,20 +1,20 @@
 # ReMIND: Orchestrating Modular LLMs for Controllable Serendipity
 
-**ReMIND (REM-inspired Modular Ideation Network for Discovery)** is a modular framework for serendipitous idea generation using Large Language Models (LLMs), inspired by the functional roles of wake-like stability and dream-like exploration observed in REM sleep.
+**ReMIND (REM-inspired Modular Ideation Network for Discovery)** is a modular framework for serendipitous idea generation orchestrating three functionally distinct LLM modules.
 version 2
 
-> **Note:** The original codebase (v1) is archived in [`ReMINDv1/`](./ReMINDv1/).
+> **Note:** The original codebase (version 1) is archived in [`ReMINDv1/`](./ReMINDv1/).
 
-## Concept Overview
+## Overview
 
-Creative ideation in LLMs often faces a trade-off between **exploration** (novelty) and **stabilization** (coherence). ReMIND addresses this by separating the process into independent computational stages, each implemented as a distinct LLM module:
+ReMIND addresses this by separating the process into independent computational stages, each implemented as a distinct LLM module:
 
-1. **Wake**: Produces a low-temperature, high-consistency semantic baseline.
-2. **Dream**: Performs high-temperature stochastic generation to explore unconventional conceptual combinations.
-3. **Judge**: An independent module that filters outputs and extracts salient novel ideas (`idea_dream`).
+1. **Wake**: Produces a low-temperature baseline response to the input prompt.
+2. **Dream**: Performs high-temperature stochastic generation, producing exploratory outputs that deviate from the baseline.
+3. **Judge**: Evaluates the wake and dream outputs for consistency and extracts the most salient novel concept as a single sentence.
 4. **Re-wake**: Re-articulates selected ideas into a coherent final output.
 
-Each module can be assigned a **different LLM**, enabling role-specialised configurations (e.g., a high-entropy model for Dream, a structured model for Re-wake).
+Each module can be assigned a **different LLM**, enabling role-specialised configurations.
 
 ## Repository Structure
 
@@ -67,8 +67,6 @@ LLM assignments are specified as a **3-letter code** representing Wake / Dream /
 
 Example: `qnq` = Qwen3.5-27B (Wake) + Nemo-30B (Dream) + Qwen3.5-27B (Judge).
 
-Homogeneous configurations (e.g., `ooo`, `qqq`) use a single model throughout the pipeline. Heterogeneous configurations (e.g., `qnq`, `ogg`) mix models across roles.
-
 ### Running a Sweep
 
 ```bash
@@ -101,8 +99,6 @@ result
 ```
 
 ## Analysis Pipeline (`remind-analysis`)
-
-Scripts are designed to be run sequentially after a sweep completes.
 
 ### 1. External Review
 
@@ -164,15 +160,13 @@ The paper evaluates **19 LLM configurations** across **3 prompt themes**:
 
 | Theme | Description |
 |-------|-------------|
-| T&S   | Time & Space (core scientific concepts) |
-| PT    | Philosophical-Technical |
-| AC    | Analytical-Creative |
+| T&S   | Time & Space  |
+| PT    | Periodic Tarot |
+| AC    | Aperiodic Craft |
 
 Configurations: 4 homogeneous (`ooo`, `qqq`, `ggg`, `nnn`) + 15 heterogeneous combinations.
 
 ## Citation
-
-If you use this framework in your research, please cite:
 
 Sato, M. (2026).
 **ReMIND: Orchestrating Modular Large Language Models for Controllable Serendipity —
