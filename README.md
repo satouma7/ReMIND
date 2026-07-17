@@ -1,6 +1,7 @@
 # ReMIND: Orchestrating Modular LLMs for Controllable Serendipity
 
 **ReMIND (REM-inspired Modular Ideation Network for Discovery)** is a modular framework for serendipitous idea generation using Large Language Models (LLMs), inspired by the functional roles of wake-like stability and dream-like exploration observed in REM sleep.
+version 2
 
 > **Note:** The original codebase (v1) is archived in [`ReMINDv1/`](./ReMINDv1/).
 
