@@ -63,7 +63,7 @@ LLM assignments are specified as a **3-letter code** representing Wake / Dream /
 | `o`  | GPT-OSS-120B |
 | `g`  | Gemma-4-31B |
 | `q`  | Qwen3-235B |
-| `n`  | Llama-3-Nemo-30B |
+| `n`  | Nemo-30B |
 
 Example: `qnq` = Qwen3-235B (Wake) + Nemo-30B (Dream) + Qwen3-235B (Judge).
 
