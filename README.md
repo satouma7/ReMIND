@@ -12,7 +12,7 @@ ReMIND comprises three LLM modules — **Wake**, **Dream**, and **Judge** — th
 1. **Wake**: Produces a low-temperature baseline response to the input prompt.
 2. **Dream**: Performs high-temperature stochastic generation, producing exploratory outputs that deviate from the baseline.
 3. **Judge**: Evaluates the wake and dream outputs and extracts the most salient novel concept as a single sentence.
-4. **Re-wake**: The wake module is re-invoked to re-articulate the selected idea into a coherent final output.
+4. **Re-wake**: The wake module is re-used to re-articulate the selected idea into a coherent final output.
 
 Each module can be assigned a **different LLM**, enabling role-specialised configurations.
 
