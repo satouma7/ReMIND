@@ -65,7 +65,7 @@ LLM assignments are specified as a **3-letter code** representing Wake / Dream /
 | `q`  | Qwen3.5-27B |
 | `n`  | Nemo-30B |
 
-Example: `qnq` = Qwen3-235B (Wake) + Nemo-30B (Dream) + Qwen3-235B (Judge).
+Example: `qnq` = Qwen3.5-27B (Wake) + Nemo-30B (Dream) + Qwen3.5-27B (Judge).
 
 Homogeneous configurations (e.g., `ooo`, `qqq`) use a single model throughout the pipeline. Heterogeneous configurations (e.g., `qnq`, `ogg`) mix models across roles.
 
