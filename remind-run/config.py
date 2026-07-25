@@ -1,9 +1,9 @@
 # config.py: Configuration file used by ensure_tmux and the wake/dream/judge modules
+# Instruction-tuned models only (paper scope).
 
 MODEL_DIR = "/home/satouma/llm/models"
 
 LLM = {
-    # --- Instruction-tuned models (uppercase in LLM_CODE_MAP) ---
     "oss120b": {
         "url": "http://localhost:8000",
         "model": f"{MODEL_DIR}/gpt-oss-120b-MXFP4-00001-of-00002.gguf",
@@ -70,29 +70,19 @@ LLM = {
         "tmux": "gemma4_26b",
         "port": 8010,
     },
-    # --- Base models (lowercase in LLM_CODE_MAP) ---
-    "qwen8b_base": {
-        "url": "http://localhost:8011",
-        "model": f"{MODEL_DIR}/Qwen3-8B-Base.Q4_K_M.gguf",
-        "tmux": "qwen8b_base",
-        "port": 8011,
-    },
-    "oss20b_base": {
-        "url": "http://localhost:8012",
-        "model": f"{MODEL_DIR}/gpt-oss-20b-base.Q4_K_M.gguf",
-        "tmux": "oss20b_base",
-        "port": 8012,
-    },
 }
 
-# Single-letter codes for CLI --llm arguments
-#   Uppercase = large instruction-tuned models
-#   Lowercase = base (non-instruction-tuned) models
+# Single-letter codes for CLI --llm arguments (must match LLM keys above)
 LLM_CODE_MAP = {
-    "O": "oss120b",
-    "G": "gemma4_31b",
-    "Q": "qwen35_27b",
-    "N": "nemo30b",
-    "o": "oss20b_base",
-    "q": "qwen8b_base",
+    "o": "oss120b",
+    "g": "gemma4_31b",
+    "G": "gemma4_26b",
+    "t": "oss20b",
+    "l": "llama3_70b",
+    "L": "llama4_17b",
+    "q": "qwen35_27b",
+    "Q": "qwen35_35b",
+    "d": "deep8b",
+    "D": "deep32b",
+    "n": "nemo30b",
 }
