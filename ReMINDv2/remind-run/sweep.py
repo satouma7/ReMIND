@@ -109,8 +109,7 @@ def iter_conditions(topic: str, *, test: bool = False, all_social: bool = False)
 # ---------- single sweep runner ----------
 
 def run_one_sweep(*, topic: str, llm_code: str, out_path: Path,
-                  test: bool, stop_unused: bool, all_social: bool = False,
-                  rewake_wake: bool = False) -> dict:
+                  test: bool, stop_unused: bool, all_social: bool = False) -> dict:
 
     sel = parse_llm_code(llm_code)
 
@@ -125,7 +124,6 @@ def run_one_sweep(*, topic: str, llm_code: str, out_path: Path,
         seed_judge=0,
         seed_rewake=0,
         score_threshold=4,
-        rewake_wake=rewake_wake,
         verbose=False,
         max_tokens_judge=200,
     )
@@ -202,8 +200,6 @@ def main() -> None:
                     help="Run a tiny sweep (3 runs)")
     ap.add_argument("--all-social", action="store_true",
                     help="Use all 10 SOCIAL_PAIRS (default: primary 3 only)")
-    ap.add_argument("--rewake-wake", action="store_true",
-                    help="Also run REWAKE_WAKE (rewake from idea_wake, off by default)")
     ap.add_argument("--out", type=str, default="")
     args = ap.parse_args()
 
@@ -233,7 +229,6 @@ def main() -> None:
                     test=args.test,
                     stop_unused=True,
                     all_social=args.all_social,
-                    rewake_wake=args.rewake_wake,
                 )
             )
         except Exception as e:

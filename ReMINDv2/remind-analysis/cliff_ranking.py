@@ -7,10 +7,9 @@ Stages:
   wake-dream             — unmatched by default; delta ranking only
   dream-rewake           — matched by default (Wilcoxon); delta ranking only
 
-Convention (flipped 2026-07-28, fully unified 2026-08-24): δ > 0 means 'to' phase > 'from'
-  phase (improvement in novelty/alignment/coherence/sum_score), matching the manuscript.
-  All ranking/sig/best_tk/sig_cnt logic below is on this sign.
-Metrics: novelty, alignment, coherence, sum_score (alignment+coherence+novelty)
+Convention: δ > 0 means 'to' phase > 'from' phase (improvement in novelty), matching the
+  manuscript's stated Cliff's delta convention.
+Metrics: novelty, sum_score (alignment+coherence+novelty)
 
 Usage:
   python cliff_ranking.py
@@ -40,24 +39,13 @@ ALL_CONDS = OLD_18 + ["gqq"]  # 19 conditions
 LOGS = Path("logs")
 
 
-def _score_from_blob(blob: Dict[str, float], metric: str) -> float | None:
-    """Extract a score for one of: novelty, alignment, coherence, sum_score.
-
-    Gates on novelty being present (all four metrics come from the same
-    review call, so a missing novelty indicates a failed/incomplete review).
-    """
-    nov = blob.get("novelty")
-    if nov is None:
-        return None
-    aln = blob.get("alignment") or 0
-    coh = blob.get("coherence") or 0
-    if metric == "novelty":
-        return float(nov)
-    if metric == "alignment":
-        return float(aln)
-    if metric == "coherence":
-        return float(coh)
-    return float(nov) + float(aln) + float(coh)  # sum_score
+def delta_label(d: float) -> str:
+    a = abs(d)
+    if a < 0.147:
+        return "negligible"
+    elif a < 0.474:
+        return "small-medium"
+    return "large"
 
 
 def load_review(cond: str, target: str, metric: str) -> Dict[str, List[float]]:
@@ -87,9 +75,12 @@ def load_review(cond: str, target: str, metric: str) -> Dict[str, List[float]]:
             if run_id is not None:
                 seen_ids.add(run_id)
             blob = (r.get("reviews") or {}).get("openai") or {}
-            score = _score_from_blob(blob, metric)
-            if score is None:
+            nov = blob.get("novelty")
+            if nov is None:
                 continue
+            aln = blob.get("alignment") or 0
+            coh = blob.get("coherence") or 0
+            score = float(nov) if metric == "novelty" else float(nov) + float(aln) + float(coh)
             pair = str(r.get("pair") or r.get("result", {}).get("pair") or "").lower()
             for theme_key, keyword in THEMES.items():
                 if keyword in pair:
@@ -122,9 +113,12 @@ def load_review_with_ids(cond: str, target: str, metric: str) -> Dict[str, Dict[
                 continue
             seen_ids.add(run_id)
             blob = (r.get("reviews") or {}).get("openai") or {}
-            score = _score_from_blob(blob, metric)
-            if score is None:
+            nov = blob.get("novelty")
+            if nov is None:
                 continue
+            aln = blob.get("alignment") or 0
+            coh = blob.get("coherence") or 0
+            score = float(nov) if metric == "novelty" else float(nov) + float(aln) + float(coh)
             pair = str(r.get("pair") or r.get("result", {}).get("pair") or "").lower()
             for theme_key, keyword in THEMES.items():
                 if keyword in pair:
@@ -133,14 +127,9 @@ def load_review_with_ids(cond: str, target: str, metric: str) -> Dict[str, Dict[
 
 
 def cliffs_delta(xa: np.ndarray, xb: np.ndarray) -> float:
-    """δ = cliffs_delta(from, to): positive = to > from (improvement).
-
-    NOTE (2026-07-28): sign flipped from the original Cliff's delta convention
-    (which is negative when 'to' > 'from') to be more intuitive, matching the
-    manuscript's stated convention. As of 2026-08-24, delta_rating(), the
-    `sig`/best_tk/sig_cnt logic, and sort_values(ascending=...) calls below
-    are all unified on this same sign.
-    """
+    """δ = cliffs_delta(from, to): positive = to > from (improvement), matching the
+    manuscript's stated Cliff's delta convention (the reverse of the original
+    P(X>Y)-P(X<Y) definition)."""
     xa = np.asarray(xa, dtype=float)
     xb = np.asarray(xb, dtype=float)
     if xa.size == 0 or xb.size == 0:
@@ -275,8 +264,6 @@ LLMS = ["o", "q", "g", "n"]
 
 
 def delta_rating(dd: float, bold: bool = True) -> str:
-    """NOTE: thresholds flipped 2026-07-28 to match cliffs_delta()'s new sign
-    (positive dd = improvement). See project_remind_cliff_sign_convention memory."""
     if np.isnan(dd):
         return "N/A"
     if dd >= 0.330:
@@ -338,11 +325,10 @@ def print_stage_ranking(df: pd.DataFrame, stage_label: str, metric: str, matched
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--metric",   choices=["novelty", "alignment", "coherence", "sum_score"], default="novelty")
-    ap.add_argument("--stage",    choices=["wake-rewake", "wake-dream", "dream-rewake", "rewake-rewake_wake"],
+    ap.add_argument("--metric",   choices=["novelty", "sum_score"], default="novelty")
+    ap.add_argument("--stage",    choices=["wake-rewake", "wake-dream", "dream-rewake"],
                     default="wake-rewake",
-                    help="comparison stage (default: wake-rewake). rewake-rewake_wake requires "
-                         "remind_review_<cond>_core_rewake_wake_gpt5.2.jsonl (see sweep_rewake_wake.py)")
+                    help="comparison stage (default: wake-rewake)")
     ap.add_argument("--unmatched", action="store_true",
                     help="force unmatched comparison (overrides default matched for dream-rewake)")
     ap.add_argument("--theme",    choices=["ts", "pt", "ac", "all"], default=None,
@@ -352,14 +338,11 @@ def main():
 
     theme_filter = THEME_KEY_MAP[args.theme] if args.theme else None
 
-    # ── non-default stages: wake-dream / dream-rewake / rewake-rewake_wake ────
+    # ── non-default stages: wake-dream / dream-rewake ─────────────────────────
     if args.stage != "wake-rewake":
-        from_target, to_target = args.stage.split("-", 1)  # "wake","dream" / "dream","rewake" / "rewake","rewake_wake"
-        matched = (args.stage in ("dream-rewake", "rewake-rewake_wake")) and not args.unmatched
-        if args.stage == "rewake-rewake_wake":
-            stage_label = "Rewake→Rewake_wake"
-        else:
-            stage_label = args.stage.replace("-", "→").replace("wake", "Wake").replace("dream", "Dream").replace("rewake", "Rewake")
+        from_target, to_target = args.stage.split("-", 1)  # "wake","dream" or "dream","rewake"
+        matched = (args.stage == "dream-rewake") and not args.unmatched
+        stage_label = args.stage.replace("-", "→").replace("wake", "Wake").replace("dream", "Dream").replace("rewake", "Rewake")
 
         all_rows = []
         for cond in ALL_CONDS:

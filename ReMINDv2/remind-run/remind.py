@@ -71,7 +71,6 @@ def run_remind(
     seed_rewake: Optional[int] = None,
 
     score_threshold: int = 4,
-    rewake_wake: bool = False,
     verbose: bool = True,
 ) -> dict[str, Any]:
 
@@ -144,7 +143,6 @@ def run_remind(
         print(f"\n=== JUDGE DREAM (LLM={llm_judge}:temp={temp_judge}:seed={seed_judge}) ===")
         print(judgedream)
 
-    score_wake = int(judgewake.get("score", 0) or 0)
     idea_wake = (judgewake.get("idea") or "").strip()
     score_dream = int(judgedream.get("score", 0) or 0)
     idea_dream = (judgedream.get("idea") or "").strip()
@@ -173,33 +171,6 @@ def run_remind(
         if verbose:
             print(f"\n=== REWAKE skipped ({rewake_skipped_reason}) ===")
 
-    # ---- REWAKE_WAKE (optional; off by default) ----
-    rewakeout_wake = None
-    rewake_wake_skipped_reason = None
-
-    if rewake_wake:
-        if score_wake >= score_threshold and idea_wake:
-            prompt_idea_wake = (
-                f"Propose the following idea to the user within {word_limit} words.\n"
-                f"IDEA:\n{idea_wake}\n"
-            )
-            rewakeout_wake = wake(
-                prompt_idea_wake,
-                llm=llm_wake,
-                max_tokens=max_tokens_rewake,
-                temperature=temp_rewake,
-                seed=seed_rewake,
-            )
-            if verbose:
-                print(f"\n=== REWAKE_WAKE (LLM={llm_wake}:temp={temp_rewake}:seed={seed_rewake}) ===")
-                print(rewakeout_wake)
-        else:
-            rewake_wake_skipped_reason = f"score_wake={score_wake}, idea_wake_empty={not bool(idea_wake)}"
-            if verbose:
-                print(f"\n=== REWAKE_WAKE skipped ({rewake_wake_skipped_reason}) ===")
-    else:
-        rewake_wake_skipped_reason = "rewake_wake=False"
-
     return {
         "pair": pair,
         "template_id": template_id,
@@ -222,7 +193,6 @@ def run_remind(
             "max_tokens_rewake": max_tokens_rewake,
             "max_tokens_judge": max_tokens_judge,
             "score_threshold": score_threshold,
-            "rewake_wake": rewake_wake,
         },
         "wakeout": wakeout,
         "judgewake": judgewake,
@@ -232,6 +202,4 @@ def run_remind(
         "idea_dream": idea_dream,
         "rewakeout": rewakeout,
         "rewake_skipped_reason": rewake_skipped_reason,
-        "rewakeout_wake": rewakeout_wake,
-        "rewake_wake_skipped_reason": rewake_wake_skipped_reason,
     }

@@ -1,8 +1,7 @@
 # config.py: Configuration file used by ensure_tmux and the wake/dream/judge modules
 # Instruction-tuned models only (paper scope).
-import os
 
-MODEL_DIR = os.environ.get("REMIND_MODEL_DIR", "/path/to/models")
+MODEL_DIR = "/home/satouma/llm/models"
 
 LLM = {
     "oss120b": {

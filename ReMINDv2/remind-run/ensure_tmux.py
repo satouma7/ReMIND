@@ -134,21 +134,10 @@ def ensure_tmux(
     # wait phase (ensure all required are responsive)
     for name in required:
         cfg = LLM[name]
-        sess = cfg["tmux"]
         port = int(cfg["port"])
         url = cfg["url"]
-        interval_sec = 180
-        max_total_sec = 1800
-        elapsed = 0
-        while True:
-            if wait_server(url, timeout_sec=interval_sec):
-                break
-            elapsed += interval_sec
-            if elapsed >= max_total_sec:
-                raise RuntimeError(f"{name} server is not responding on :{port} ({url})")
-            if not tmux_exists(sess):
-                raise RuntimeError(f"{name} tmux session '{sess}' died during startup")
-            print(f"[ensure_tmux] {name} not ready yet, retrying ({elapsed}s elapsed)...")
+        if not wait_server(url, timeout_sec=180):
+            raise RuntimeError(f"{name} server is not responding on :{port} ({url})")
         
 if __name__ == "__main__":
     import argparse

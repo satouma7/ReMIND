@@ -6,7 +6,6 @@ Pipeline: sweep done -> rename (remove timestamp) -> rsync to Mac
           -> review --all -> select_top -> evaluate -> violin_hitemp
 """
 from __future__ import annotations
-import os
 import subprocess
 import time
 import shutil
@@ -131,20 +130,13 @@ def process(host: str, cond: str) -> None:
 
 
 def send_mail(subject: str, body: str) -> None:
-    """Sends a completion notification via macOS Mail.app.
-    Set NOTIFY_EMAIL (and optionally NOTIFY_NAME) to enable; no-op otherwise.
-    """
-    address = os.environ.get("NOTIFY_EMAIL")
-    if not address:
-        return
-    name = os.environ.get("NOTIFY_NAME", address.split("@")[0])
     script = f'''tell application "Mail"
     set msg to make new outgoing message
     set subject of msg to "{subject}"
     set content of msg to "{body}"
     set message signature of msg to missing value
     tell msg
-        make new to recipient at end of to recipients with properties {{name:"{name}", address:"{address}"}}
+        make new to recipient at end of to recipients with properties {{name:"satouma", address:"satouma@mac.com"}}
     end tell
     send msg
 end tell'''

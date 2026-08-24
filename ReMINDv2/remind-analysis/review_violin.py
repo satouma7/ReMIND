@@ -207,9 +207,7 @@ def cliffs_delta(xa: np.ndarray, xb: np.ndarray) -> float:
     """
     δ = cliffs_delta(from, to): positive = to > from (improvement), i.e.
     (P(X<Y) - P(X>Y)) over all pairs. Matches cliff_ranking.py's convention
-    (flipped 2026-08-24 from the original P(X>Y)-P(X<Y) definition so that
-    higher novelty/alignment/coherence always yields a higher δ, per the
-    manuscript's stated Cliff's delta convention).
+    and the manuscript's stated Cliff's delta convention.
     Works well for ordinal/discrete scores with ties.
     """
     xa = np.asarray(xa, dtype=float)

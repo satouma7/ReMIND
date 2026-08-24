@@ -281,17 +281,12 @@ class GeminiReviewer:
 def choose_targets(args: argparse.Namespace) -> List[str]:
     if getattr(args, "all", False):
         return ["wake", "dream", "rewake"]
-    flags = {
-        "wake": bool(args.wake),
-        "dream": bool(args.dream),
-        "rewake": bool(args.rewake),
-        "rewake_wake": bool(args.rewake_wake),
-    }
+    flags = {"wake": bool(args.wake), "dream": bool(args.dream), "rewake": bool(args.rewake)}
     chosen = [k for k, v in flags.items() if v]
     if len(chosen) == 0:
         return ["rewake"]
     if len(chosen) > 1:
-        raise ValueError(f"Choose only one target among --wake/--dream/--rewake/--rewake-wake (got: {chosen})")
+        raise ValueError(f"Choose only one target among --wake/--dream/--rewake (got: {chosen})")
     return [chosen[0]]
 
 def get_text_for_target(res: Dict[str, Any], target: str) -> Optional[str]:
@@ -301,8 +296,6 @@ def get_text_for_target(res: Dict[str, Any], target: str) -> Optional[str]:
         return res.get("dreamout")
     if target == "rewake":
         return res.get("rewakeout")
-    if target == "rewake_wake":
-        return res.get("rewakeout_wake")
     raise ValueError(target)
 
 def iter_review_items(
@@ -373,10 +366,6 @@ def suffix_from_input_name(in_path: Path) -> str:
 
 def default_out_path(in_path: Path, target: str, *, tag: str = "") -> Path:
     suffix = suffix_from_input_name(in_path)
-    # avoid doubling up when reviewing a sweep_rewake_wake.py-augmented input
-    # (e.g. remind_sweep_qoq_core_rewake_wake.jsonl) for target="rewake_wake"
-    if suffix.endswith(f"_{target}"):
-        suffix = suffix[: -len(f"_{target}")]
     out_name = f"remind_review_{suffix}_{target}{tag}.jsonl"
     return in_path.parent / out_name
 
@@ -545,8 +534,6 @@ def main() -> None:
     ap.add_argument("--wake", action="store_true", help="review wakeout only")
     ap.add_argument("--dream", action="store_true", help="review dreamout only")
     ap.add_argument("--rewake", action="store_true", help="review rewakeout only (default)")
-    ap.add_argument("--rewake-wake", action="store_true",
-                    help="review rewakeout_wake only (requires a sweep_rewake_wake.py-augmented input file)")
     ap.add_argument("--all", action="store_true", help="review wake+dream+rewake (writes three JSONLs)")
 
     args = ap.parse_args()
