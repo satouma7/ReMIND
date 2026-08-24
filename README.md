@@ -145,11 +145,8 @@ python evaluate.py 1ooo_time_space.csv --model gpt-5.2
 - **Wake → Dream** (Mann–Whitney U, unmatched): quantifies novelty gain during the Dream phase.
 - **Dream → Re-wake** (Wilcoxon signed-rank, matched by `run_id`): quantifies coherent elaboration during the Re-wake phase.
 
-Sign convention: δ < 0 indicates improvement (the target phase scores higher than the source phase).
-
-> **Note:** For readability, the manuscript reports Cliff's δ with the **opposite** sign from this code
-> (i.e., δ > 0 indicates improvement in the paper text/tables). When comparing this script's output
-> against reported values, negate the sign.
+Sign convention: δ > 0 indicates improvement (the target phase scores higher than the source phase),
+matching the sign reported in the manuscript text/tables.
 
 ```bash
 python cliff_ranking.py                          # wake–rewake full analysis

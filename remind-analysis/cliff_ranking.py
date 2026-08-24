@@ -7,7 +7,8 @@ Stages:
   wake-dream             — unmatched by default; delta ranking only
   dream-rewake           — matched by default (Wilcoxon); delta ranking only
 
-Convention: δ < 0 means 'to' phase > 'from' phase (improvement in novelty)
+Convention: δ > 0 means 'to' phase > 'from' phase (improvement in novelty), matching the
+  manuscript's stated Cliff's delta convention.
 Metrics: novelty, sum_score (alignment+coherence+novelty)
 
 Usage:
@@ -126,13 +127,15 @@ def load_review_with_ids(cond: str, target: str, metric: str) -> Dict[str, Dict[
 
 
 def cliffs_delta(xa: np.ndarray, xb: np.ndarray) -> float:
-    """δ = cliffs_delta(from, to): negative = to > from (improvement)."""
+    """δ = cliffs_delta(from, to): positive = to > from (improvement), matching the
+    manuscript's stated Cliff's delta convention (the reverse of the original
+    P(X>Y)-P(X<Y) definition)."""
     xa = np.asarray(xa, dtype=float)
     xb = np.asarray(xb, dtype=float)
     if xa.size == 0 or xb.size == 0:
         return float("nan")
     diff = xa[:, None] - xb[None, :]
-    return float((np.sum(diff > 0) - np.sum(diff < 0)) / (xa.size * xb.size))
+    return float((np.sum(diff < 0) - np.sum(diff > 0)) / (xa.size * xb.size))
 
 
 def mann_whitney_p(xa: np.ndarray, xb: np.ndarray) -> float:
@@ -263,13 +266,13 @@ LLMS = ["o", "q", "g", "n"]
 def delta_rating(dd: float, bold: bool = True) -> str:
     if np.isnan(dd):
         return "N/A"
-    if dd <= -0.330:
+    if dd >= 0.330:
         sym = "++"
-    elif dd <= -0.147:
+    elif dd >= 0.147:
         sym = "+"
-    elif dd < 0.147:
+    elif dd > -0.147:
         sym = "+/−"
-    elif dd < 0.330:
+    elif dd > -0.330:
         sym = "−"
     else:
         sym = "−−"
@@ -310,13 +313,13 @@ def print_stage_ranking(df: pd.DataFrame, stage_label: str, metric: str, matched
         sub = df[df["theme"] == theme_key].copy()
         if sub.empty:
             continue
-        sub = sub.sort_values("delta", ascending=True)
+        sub = sub.sort_values("delta", ascending=False)
         print(f"\n## {theme_label}  |  {stage_label} ({match_label})  |  metric={metric}\n")
         print(f"| Rank | cond |      δ |  Δmean |          p |   n |")
         print(f"|-----:|:-----|-------:|-------:|-----------:|----:|")
         for rank, (_, row) in enumerate(sub.iterrows(), 1):
             d = row["delta"]
-            sig = " *" if row["p"] < 0.05 and d < 0 else ""
+            sig = " *" if row["p"] < 0.05 and d > 0 else ""
             print(f"| {rank} | {row['cond']}{sig} | {d:+.3f} | {row['dmean']:+.3f} | {fmt_p(row['p']):>10} | {int(row['n'])} |")
 
 
@@ -376,7 +379,7 @@ def main():
         sub = df[df["theme"] == theme_key].copy()
         if sub.empty:
             continue
-        sub = sub.sort_values("delta", ascending=True)
+        sub = sub.sort_values("delta", ascending=False)
 
         print(f"\n## {theme_label}  |  Wake→Rewake (unmatched)  |  metric={args.metric}\n")
         print(f"| Rank | cond |      δ |  Δmean |          p |   n |")
@@ -395,7 +398,7 @@ def main():
     wide.columns.name = None
     wide = wide.rename(columns=THEME_SHORT)
     wide["mean_δ"] = wide[list(THEME_SHORT.values())].mean(axis=1)
-    wide = wide.sort_values("mean_δ", ascending=True).reset_index(drop=True)
+    wide = wide.sort_values("mean_δ", ascending=False).reset_index(drop=True)
 
     if not theme_filter or theme_filter == "all":
         print(f"\n## All Themes (mean δ)  |  Wake→Rewake (unmatched)  |  metric={args.metric}\n")
@@ -499,7 +502,7 @@ def main():
     if not theme_filter or theme_filter == "all":
         d_sub = (df.groupby("cond")["delta"].mean()
                    .reset_index()
-                   .sort_values("delta", ascending=True)
+                   .sort_values("delta", ascending=False)
                    .reset_index(drop=True))
         d_rank = {row["cond"]: i + 1 for i, row in d_sub.iterrows()}
         m_sub = (mdf[mdf["theme"] == "all"]
@@ -550,7 +553,7 @@ def main():
         if p < 0.1:   return f"{p:.3f}"
         return f"{p:.2f}"
 
-    best_tk = min(THEME_ORDER, key=lambda tk: float(np.mean(t_delta[tk])))
+    best_tk = max(THEME_ORDER, key=lambda tk: float(np.mean(t_delta[tk])))
 
     print(f"\n**Wilcoxon signed-rank test**（{len(ALL_CONDS)}条件の対応δ値による対比較）\n")
     print(f"| Theme | mean δ | mean Δmean | p vs periodic | p vs aperiodic |")
@@ -595,11 +598,11 @@ def main():
             pool.extend(load_review(cond, "wake", args.metric)[tk])
         wake_pool[tk] = np.array(pool)
 
-    # Count conditions with significant improvement (δ<0 and p<0.05) among ALL_CONDS
+    # Count conditions with significant improvement (δ>0 and p<0.05) among ALL_CONDS
     sig_cnt = {}
     for tk in THEME_ORDER:
         sub = df[(df["theme"] == tk) & (df["cond"].isin(ALL_CONDS))]
-        sig_cnt[tk] = int(((sub["delta"] < 0) & (sub["p"] < 0.05)).sum())
+        sig_cnt[tk] = int(((sub["delta"] > 0) & (sub["p"] < 0.05)).sum())
 
     mean_w = {tk: float(np.mean(wake_pool[tk])) for tk in THEME_ORDER}
     med_w  = {tk: float(np.median(wake_pool[tk])) for tk in THEME_ORDER}

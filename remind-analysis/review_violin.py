@@ -205,7 +205,9 @@ def build_dataframe(paths: Dict[str, Path], reviewer: str) -> pd.DataFrame:
 
 def cliffs_delta(xa: np.ndarray, xb: np.ndarray) -> float:
     """
-    Cliff's delta: (P(X>Y) - P(X<Y)) over all pairs.
+    δ = cliffs_delta(from, to): positive = to > from (improvement), i.e.
+    (P(X<Y) - P(X>Y)) over all pairs. Matches cliff_ranking.py's convention
+    and the manuscript's stated Cliff's delta convention.
     Works well for ordinal/discrete scores with ties.
     """
     xa = np.asarray(xa, dtype=float)
@@ -217,7 +219,7 @@ def cliffs_delta(xa: np.ndarray, xb: np.ndarray) -> float:
     n_gt = float(np.sum(diff > 0))
     n_lt = float(np.sum(diff < 0))
     denom = float(xa.size * xb.size)
-    return (n_gt - n_lt) / denom
+    return (n_lt - n_gt) / denom
 
 
 def mann_whitney_report(df: pd.DataFrame, scope_name: str) -> None:
