@@ -181,6 +181,10 @@ python cliff_ranking.py --metric alignment                # or coherence, sum_sc
 python cliff_ranking.py --theme time_space                # single theme
 ```
 
+## Representative Run Outputs
+
+[`representative_runs/`](./representative_runs/) contains the full Wake / Dream / idea_dream / Re-wake outputs (plus raw JSON pipeline records) for the representative runs discussed in the manuscript's Supplementary Text, for runs where only the Re-wake output appears in the text itself.
+
 ## Experimental Design
 
 The paper evaluates **19 LLM configurations** across **3 prompt themes**:
